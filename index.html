@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WordMorph — A Study in Morphology</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F5F5DC;
+    --bg-soft: #FAF8EF;
+    --text: #4A4035;
+    --text-muted: #A99C8B;
+    --accent: #B8860B;
+    --accent-soft: rgba(184,134,11,0.10);
+    --border: #E2DAC6;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{ margin:0; padding:0; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'EB Garamond', serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page{
+    max-width: 680px;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 5vw, 2rem) 4rem;
+  }
+
+  header{
+    text-align: center;
+    margin-bottom: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  .eyebrow{
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.9rem;
+    font-weight: 500;
+  }
+
+  h1{
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-size: clamp(2.6rem, 8vw, 3.6rem);
+    margin: 0 0 0.9rem;
+    letter-spacing: 0.01em;
+  }
+
+  .lede{
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 1.02rem;
+    margin: 0 auto;
+    max-width: 30em;
+  }
+
+  .rule{
+    width: 56px;
+    height: 1px;
+    background: var(--accent);
+    margin: 1.6rem auto 0;
+    opacity: 0.6;
+  }
+
+  .group{
+    margin-bottom: clamp(2.2rem, 5vw, 3rem);
+  }
+
+  .group h2{
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-style: italic;
+    font-size: 1.1rem;
+    color: var(--text);
+    margin: 0 0 1.1rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .group h2 span{
+    font-family: 'EB Garamond', serif;
+    font-style: normal;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .word-list{
+    display: flex;
+    flex-direction: column;
+  }
+
+  .word-card{
+    border-bottom: 1px solid var(--border);
+  }
+  .word-card:first-child{
+    border-top: 1px solid var(--border);
+  }
+
+  .word-toggle{
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    padding: 1.15rem 0.1rem;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: inherit;
+    color: inherit;
+  }
+
+  .word-toggle:hover .word-display{
+    color: var(--accent);
+  }
+
+  .word-display{
+    font-family: 'Playfair Display', serif;
+    font-weight: 500;
+    font-size: clamp(1.5rem, 4.5vw, 1.9rem);
+    letter-spacing: 0.01em;
+    transition: color 0.25s ease, letter-spacing 0.4s ease, gap 0.4s ease;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+  }
+
+  .word-display.split{
+    gap: 0.45em;
+  }
+
+  .morph{
+    transition: color 0.35s ease, opacity 0.35s ease, border-color 0.35s ease;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 2px;
+  }
+
+  .morph.dim{
+    opacity: 0.4;
+  }
+
+  .morph.lit{
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .indicator{
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    align-self: center;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .word-card.open .indicator{
+    color: var(--accent);
+  }
+
+  /* Action panel */
+  .actions{
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 0.45s ease;
+  }
+  .word-card.open .actions{
+    grid-template-rows: 1fr;
+  }
+  .actions-inner{
+    min-height: 0;
+    padding-bottom: 1.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.4s ease 0.05s, transform 0.4s ease 0.05s;
+  }
+  .word-card.open .actions-inner{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .action-btn{
+    font-family: 'EB Garamond', serif;
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 0.55rem 1.1rem;
+    cursor: pointer;
+    transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+  }
+
+  .action-btn:hover:not(:disabled){
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .action-btn.active{
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .action-btn:disabled{
+    color: var(--text-muted);
+    border-color: var(--border);
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  /* Labels under split word */
+  .labels{
+    display: flex;
+    gap: 0.45em;
+    margin-top: 0.35rem;
+  }
+  .labels span{
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+  }
+  .labels span.lit{ color: var(--accent); }
+
+  /* Breakdown */
+  .breakdown{
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 0.45s ease;
+  }
+  .breakdown.shown{
+    grid-template-rows: 1fr;
+  }
+  .breakdown-inner{
+    min-height: 0;
+    padding: 0 0 1.4rem;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
+  }
+  .breakdown.shown .breakdown-inner{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .equation{
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.02rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    color: var(--text);
+  }
+
+  .equation .lit{ color: var(--accent); font-style: normal; font-weight: 500; }
+  .equation .dim{ opacity: 0.45; }
+  .equation .meaning{ font-size: 0.85em; opacity: 0.75; }
+  .equation .sym{ color: var(--text-muted); font-style: normal; margin: 0 0.3em; }
+
+  footer{
+    text-align: center;
+    margin-top: clamp(3rem, 6vw, 4.5rem);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 420px){
+    .word-toggle{ align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+    .indicator{ align-self: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <p class="eyebrow">A Study in Morphology</p>
+    <h1>WordMorph</h1>
+    <p class="lede">เลือกคำศัพท์เพื่อดูว่าคำถูกสร้างขึ้นจากส่วนใดบ้าง — Prefix, Suffix หรือทั้งสองอย่าง</p>
+    <div class="rule"></div>
+  </header>
+
+  <main id="groups"></main>
+
+  <footer>WordMorph · Prototype · 7 Words</footer>
+</div>
+
+<script>
+const DATA = [
+  {
+    id: 'untrue', word: 'Untrue', group: 'prefix',
+    parts: [
+      { text: 'Un', type: 'prefix', meaning: 'ไม่' },
+      { text: 'true', type: 'root', meaning: 'จริง' },
+    ],
+    translation: 'ไม่จริง'
+  },
+  {
+    id: 'rewrite', word: 'Rewrite', group: 'prefix',
+    parts: [
+      { text: 'Re', type: 'prefix', meaning: 'ใหม่' },
+      { text: 'write', type: 'root', meaning: 'เขียน' },
+    ],
+    translation: 'เขียนใหม่'
+  },
+  {
+    id: 'impossible', word: 'Impossible', group: 'prefix',
+    parts: [
+      { text: 'Im', type: 'prefix', meaning: 'ไม่' },
+      { text: 'possible', type: 'root', meaning: 'เป็นไปได้' },
+    ],
+    translation: 'เป็นไปไม่ได้'
+  },
+  {
+    id: 'teacher', word: 'Teacher', group: 'suffix',
+    parts: [
+      { text: 'Teach', type: 'root', meaning: 'สอน' },
+      { text: 'er', type: 'suffix', meaning: 'ผู้-' },
+    ],
+    translation: 'ครู'
+  },
+  {
+    id: 'greatness', word: 'Greatness', group: 'suffix',
+    parts: [
+      { text: 'Great', type: 'root', meaning: 'ยิ่งใหญ่' },
+      { text: 'ness', type: 'suffix', meaning: 'ความ-' },
+    ],
+    translation: 'ความยิ่งใหญ่'
+  },
+  {
+    id: 'unbelievable', word: 'Unbelievable', group: 'both',
+    parts: [
+      { text: 'Un', type: 'prefix', meaning: 'ไม่' },
+      { text: 'believ', type: 'root', meaning: 'เชื่อ' },
+      { text: 'able', type: 'suffix', meaning: 'น่า-/-ได้' },
+    ],
+    translation: 'ไม่น่าเชื่อ'
+  },
+  {
+    id: 'disagreement', word: 'Disagreement', group: 'both',
+    parts: [
+      { text: 'Dis', type: 'prefix', meaning: 'ไม่' },
+      { text: 'agree', type: 'root', meaning: 'เห็นด้วย' },
+      { text: 'ment', type: 'suffix', meaning: 'การ-' },
+    ],
+    translation: 'การไม่เห็นด้วย'
+  },
+];
+
+const GROUPS = [
+  { key: 'prefix', label: 'Prefix', count: 'ส่วนเติมหน้า · 3 คำ' },
+  { key: 'suffix', label: 'Suffix', count: 'ส่วนเติมหลัง · 2 คำ' },
+  { key: 'both',   label: 'Both',   count: 'เติมหน้า + เติมหลัง · 2 คำ' },
+];
+
+const TYPE_LABEL = { prefix: 'Prefix', root: 'Root', suffix: 'Suffix' };
+
+const root = document.getElementById('groups');
+
+function capitalize(s){
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+GROUPS.forEach(group => {
+  const section = document.createElement('section');
+  section.className = 'group';
+
+  const h2 = document.createElement('h2');
+  h2.innerHTML = `${group.label} <span>${group.count}</span>`;
+  section.appendChild(h2);
+
+  const list = document.createElement('div');
+  list.className = 'word-list';
+
+  DATA.filter(d => d.group === group.key).forEach(item => {
+    list.appendChild(buildCard(item));
+  });
+
+  section.appendChild(list);
+  root.appendChild(section);
+});
+
+function buildCard(item){
+  const card = document.createElement('article');
+  card.className = 'word-card';
+
+  // Toggle row
+  const toggle = document.createElement('button');
+  toggle.className = 'word-toggle';
+
+  const display = document.createElement('span');
+  display.className = 'word-display';
+  display.textContent = item.word;
+
+  const indicator = document.createElement('span');
+  indicator.className = 'indicator';
+  indicator.textContent = 'Select';
+
+  toggle.appendChild(display);
+  toggle.appendChild(indicator);
+  card.appendChild(toggle);
+
+  // Actions
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const actionsInner = document.createElement('div');
+  actionsInner.className = 'actions-inner';
+
+  const hasPrefix = item.parts.some(p => p.type === 'prefix');
+  const hasSuffix = item.parts.some(p => p.type === 'suffix');
+
+  const modes = [
+    { mode: 'prefix', label: 'Analyze Prefix', enabled: hasPrefix },
+    { mode: 'suffix', label: 'Analyze Suffix', enabled: hasSuffix },
+    { mode: 'both',   label: 'Analyze Both',   enabled: hasPrefix || hasSuffix },
+  ];
+
+  const buttons = {};
+  modes.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'action-btn';
+    btn.textContent = m.label;
+    if (!m.enabled){
+      btn.disabled = true;
+      btn.title = `${item.word} ไม่มี ${m.mode === 'prefix' ? 'Prefix' : m.mode === 'suffix' ? 'Suffix' : 'Prefix/Suffix'}`;
+    } else {
+      btn.addEventListener('click', () => applyMode(item, m.mode, display, breakdown, buttons));
+    }
+    buttons[m.mode] = btn;
+    actionsInner.appendChild(btn);
+  });
+
+  actions.appendChild(actionsInner);
+  card.appendChild(actions);
+
+  // Breakdown area
+  const breakdown = document.createElement('div');
+  breakdown.className = 'breakdown';
+  const breakdownInner = document.createElement('div');
+  breakdownInner.className = 'breakdown-inner';
+  breakdown.appendChild(breakdownInner);
+  card.appendChild(breakdown);
+
+  toggle.addEventListener('click', () => {
+    const willOpen = !card.classList.contains('open');
+
+    // close all other open cards
+    document.querySelectorAll('.word-card.open').forEach(c => {
+      if (c !== card){
+        c.classList.remove('open');
+        c.querySelector('.indicator').textContent = 'Select';
+        resetDisplay(c);
+        c.querySelector('.breakdown').classList.remove('shown');
+        Object.values(c.__buttons || {}).forEach(b => b.classList.remove('active'));
+      }
+    });
+
+    card.classList.toggle('open', willOpen);
+    indicator.textContent = willOpen ? 'Close' : 'Select';
+
+    if (!willOpen){
+      resetDisplay(card);
+      breakdown.classList.remove('shown');
+      Object.values(buttons).forEach(b => b.classList.remove('active'));
+    }
+  });
+
+  card.__buttons = buttons;
+  return card;
+}
+
+function resetDisplay(card){
+  const display = card.querySelector('.word-display');
+  const item = DATA.find(d => d.word === display.dataset.word || true);
+}
+
+function applyMode(item, mode, display, breakdown, buttons){
+  // highlight active button
+  Object.entries(buttons).forEach(([key, btn]) => {
+    btn.classList.toggle('active', key === mode);
+  });
+
+  // Determine which morpheme types are "lit" for this mode
+  let litTypes;
+  if (mode === 'prefix') litTypes = ['prefix'];
+  else if (mode === 'suffix') litTypes = ['suffix'];
+  else litTypes = ['prefix', 'suffix'];
+
+  // Build split word display
+  display.innerHTML = '';
+  display.classList.add('split');
+
+  const labelsRow = document.createElement('div');
+  labelsRow.className = 'labels';
+
+  item.parts.forEach(part => {
+    const lit = litTypes.includes(part.type);
+    const span = document.createElement('span');
+    span.className = 'morph ' + (lit ? 'lit' : 'dim');
+    span.textContent = part.text;
+    display.appendChild(span);
+
+    const label = document.createElement('span');
+    label.className = lit ? 'lit' : '';
+    label.textContent = TYPE_LABEL[part.type];
+    label.style.flex = '1 1 0';
+    label.style.textAlign = 'left';
+    labelsRow.appendChild(label);
+  });
+
+  // Equation breakdown
+  const breakdownInner = breakdown.querySelector('.breakdown-inner');
+  breakdownInner.innerHTML = '';
+
+  const eq = document.createElement('div');
+  eq.className = 'equation';
+
+  const pieces = [];
+  item.parts.forEach((part, i) => {
+    const lit = litTypes.includes(part.type);
+    const cls = lit ? 'lit' : 'dim';
+    pieces.push(`<span class="${cls}">${capitalize(part.text)} <span class="meaning">(${part.meaning})</span></span>`);
+  });
+
+  eq.innerHTML = pieces.join('<span class="sym">+</span>')
+    + `<span class="sym">=</span><span class="lit">${item.word} <span class="meaning">(${item.translation})</span></span>`;
+
+  breakdownInner.appendChild(eq);
+
+  // insert label row right after the split display (only once)
+  const existingLabels = display.parentElement.querySelector('.labels');
+  if (existingLabels) existingLabels.remove();
+  display.insertAdjacentElement('afterend', labelsRow);
+
+  breakdown.classList.add('shown');
+}
+</script>
+</body>
+</html>
